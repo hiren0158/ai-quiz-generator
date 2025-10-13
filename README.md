@@ -1,4 +1,5 @@
 # 🧠 AI Quiz Generator
+https://ai-quiz-generator-wgrn5hnhretaapncetynyk.streamlit.app/
 
 A modern, feature-rich quiz application powered by Google Gemini AI with beautiful glassmorphism UI design.
 

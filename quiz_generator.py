@@ -139,7 +139,9 @@ class QuizGenerator:
         if prev_questions:
             # Add context about previous questions (show last 10)
             recent_questions = prev_questions[-10:]
-            prev_q_text = "\n".join([f"- {q}" for q in recent_questions])
+            # Escape curly braces in previous questions to prevent template variable conflicts
+            escaped_questions = [q.replace('{', '{{').replace('}', '}}') for q in recent_questions]
+            prev_q_text = "\n".join([f"- {q}" for q in escaped_questions])
             enhanced_prompt += f"\n\nIMPORTANT - AVOID THESE PREVIOUSLY ASKED QUESTIONS:\n{prev_q_text}\n\nYour questions MUST be completely different from the above. Generate fresh, unique questions on different aspects of the topic."
 
         prompt_template = PromptTemplate(

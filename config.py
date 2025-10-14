@@ -15,20 +15,28 @@ try:
         st.secrets["api_keys"]["key4"],
         st.secrets["api_keys"]["key5"],
         st.secrets["api_keys"]["key6"],
+        st.secrets["api_keys"]["key7"],
+        st.secrets["api_keys"]["key8"],
+        st.secrets["api_keys"]["key9"],
+        st.secrets["api_keys"]["key10"],
     ]
     DEFAULT_API_KEY = API_KEY_POOL[0]
 except:
     # Fallback to hardcoded keys (for local development)
-    DEFAULT_API_KEY = "AIzaSyBp0zPkMF15rYvtvj6XPgnw03-3a6h0CGA"
+    DEFAULT_API_KEY = "AIzaSyCKyXe8weTP27n1fi9G88hfCcl3HhxQICQ"
     
     # Multiple API Keys for automatic rotation when quota is reached
     API_KEY_POOL = [
-        "AIzaSyBp0zPkMF15rYvtvj6XPgnw03-3a6h0CGA",
-        "AIzaSyCcALpmeywfD1RQ_VbeAJSiQ815N2AaBlY",
-        "AIzaSyCLXMhfUBGr1qRYWf2gzY3CjVT74DWzFAM",
-        "AIzaSyB_bq-gubIukD9FdL6dKVQVAxLstfse4IQ",
-        "AIzaSyDh5ovwTSzgWMIwVF1iSXEzbZJyiz8zJU4",
-        "AIzaSyDfp93mJii0QYvWCFnM05kIxR1A5wpvrt4",
+        "AIzaSyCKyXe8weTP27n1fi9G88hfCcl3HhxQICQ",
+        "AIzaSyAHUsalutCvdP-PGar81EwbBiad-Ehd1lc",
+        "AIzaSyDu5aXqH9sMOvPB7kaZZ1VDMgHufZuUg-s",
+        "AIzaSyCHGrz-idIbQ7MVUacOLgsuWaUyqxvMQFw",
+        "AIzaSyBj6KT3TJNE7BNTO3mj3w1bbYNxQdGmgzs",
+        "AIzaSyAQEa_ois1vVQTiz62bWxUqZv1AF45hiAc",
+        "AIzaSyDq1YzszK5nNCVssXvbKveo_hB6jDkLuv0",
+        "AIzaSyBErYtFt0pVceGIDkVMTUXoy2njNw2rHD4",
+        "AIzaSyDW1q1iiRZ1WybjW2PIovA_qkDnynSrSCw",
+        "AIzaSyAOnO0vcxZvnqjnltU0qXgSmwuogd3t4FQ",
     ]
 
 DEFAULT_MODEL = "gemini-2.0-flash-exp"  # Updated to working model

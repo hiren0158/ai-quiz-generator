@@ -127,7 +127,12 @@ class QuizGenerator:
             # Get previous questions for this topic
             prev_questions = QuizGenerator.previous_questions_store.get(topic, [])
         except Exception as init_error:
-            raise Exception("Setup error. Please click 'Generate Quiz' again to retry.")
+            # Show actual error for debugging
+            error_msg = str(init_error)
+            if "quota" in error_msg.lower() or "429" in error_msg:
+                raise Exception("All API keys have reached their quota. Please try again later or add fresh API keys.")
+            else:
+                raise Exception(f"Setup error: {error_msg}")
         
         # Create enhanced prompt with previous questions context
         enhanced_prompt = QUIZ_GENERATION_PROMPT

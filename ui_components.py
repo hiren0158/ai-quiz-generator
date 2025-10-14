@@ -1,14 +1,42 @@
 # File: ui_components.py
 """
-UI components for the Quiz App
+UI Components for Quiz App using Streamlit
 """
 
 import streamlit as st
 from config import DIFFICULTY_LEVELS
+import re
 
 
 class UIComponents:
     """Handles all UI components"""
+    
+    @staticmethod
+    def format_code_blocks(text):
+        """Convert markdown code blocks to HTML code blocks for proper mobile rendering"""
+        # Convert triple backtick code blocks to HTML pre/code
+        # Pattern: ```language\ncode\n``` or ```language\ncode```
+        def replace_code_block(match):
+            language = match.group(1) if match.group(1) else ''
+            code = match.group(2)
+            # Escape HTML in code
+            code = code.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            return f'<pre><code>{code}</code></pre>'
+        
+        # Replace triple backtick code blocks (with or without trailing newline)
+        text = re.sub(r'```(\w+)?\s*\n(.*?)```', replace_code_block, text, flags=re.DOTALL)
+        
+        # Convert inline code (single backticks) to HTML code tags
+        def replace_inline_code(match):
+            code = match.group(1)
+            # Escape HTML in code
+            code = code.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            return f'<code>{code}</code>'
+        
+        # Replace inline code (avoid already converted code in pre tags)
+        text = re.sub(r'`([^`]+)`', replace_inline_code, text)
+        
+        return text
     
     @staticmethod
     def render_sidebar(api_key_value="", topic_value="", num_questions_value=5, difficulty_value="Medium 🎯"):
@@ -73,8 +101,9 @@ class UIComponents:
         # Question number badge
         st.markdown(f'<span class="question-number">Question {idx + 1}</span>', unsafe_allow_html=True)
         
-        # Question text
-        st.markdown(f'<div class="question-text">{question_data["question"]}</div>', unsafe_allow_html=True)
+        # Question text with code block formatting
+        formatted_question = UIComponents.format_code_blocks(question_data["question"])
+        st.markdown(f'<div class="question-text">{formatted_question}</div>', unsafe_allow_html=True)
         
         if not quiz_submitted:
             # Radio button for options - before submission
@@ -107,7 +136,8 @@ class UIComponents:
                     st.markdown(f'<div class="option-button">{option_text}</div>', unsafe_allow_html=True)
             
             # Show explanation with better styling
-            st.markdown(f'<div class="explanation-box"><strong>💡 Explanation:</strong> {question_data["explanation"]}</div>', unsafe_allow_html=True)
+            formatted_explanation = UIComponents.format_code_blocks(question_data["explanation"])
+            st.markdown(f'<div class="explanation-box"><strong>💡 Explanation:</strong> {formatted_explanation}</div>', unsafe_allow_html=True)
         
         st.markdown('</div>', unsafe_allow_html=True)
         st.markdown('<div style="margin-bottom: 0.5rem;"></div>', unsafe_allow_html=True)

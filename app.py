@@ -148,18 +148,9 @@ else:
         difficulty_class = "badge-easy" if "Easy" in difficulty else "badge-medium" if "Medium" in difficulty else "badge-hard"
         st.markdown(f'<div class="difficulty-badge {difficulty_class}">{difficulty}</div>', unsafe_allow_html=True)
     
-    # --- Progress Bar (if not submitted) ---
+    # --- Progress Bar Container (Placeholder for dynamic updates) ---
     if not st.session_state.quiz_submitted:
-        answered = len(st.session_state.user_answers)
-        total = len(st.session_state.quiz_data)
-        progress_percent = (answered / total) * 100
-        
-        st.markdown(f"""
-        <div class="progress-container">
-            <div class="progress-bar" style="width: {progress_percent}%"></div>
-            <div class="progress-text">Progress: {answered}/{total} questions answered</div>
-        </div>
-        """, unsafe_allow_html=True)
+        progress_placeholder = st.empty()
     
     # --- Quiz Questions Container ---
     st.markdown('<div class="quiz-container">', unsafe_allow_html=True)
@@ -171,6 +162,20 @@ else:
             st.session_state.user_answers
         )
     st.markdown('</div>', unsafe_allow_html=True)
+    
+    # --- Update Progress Bar After Questions Rendered ---
+    if not st.session_state.quiz_submitted:
+        answered = len(st.session_state.user_answers)
+        total = len(st.session_state.quiz_data)
+        progress_percent = (answered / total) * 100
+        
+        with progress_placeholder.container():
+            st.markdown(f"""
+            <div class="progress-container">
+                <div class="progress-bar" style="width: {progress_percent}%"></div>
+                <div class="progress-text">Progress: {answered}/{total} questions answered</div>
+            </div>
+            """, unsafe_allow_html=True)
 
     # --- Submit Quiz button (only after quiz generated) ---
     if not st.session_state.quiz_submitted:

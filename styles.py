@@ -264,6 +264,39 @@ header {visibility: hidden;}
     border-color: #6c5ce7 !important;
 }
 
+/* Code block styling for mobile responsiveness */
+pre {
+    background: rgba(0, 0, 0, 0.4) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 1rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+    margin: 0.5rem 0;
+}
+
+pre code {
+    background: transparent !important;
+    color: #a8e6cf !important;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    white-space: pre;
+    display: block;
+}
+
+code {
+    background: rgba(108, 92, 231, 0.2) !important;
+    color: #a8e6cf !important;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9em;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+
 /* Progress bar */
 .progress-container {
     background: rgba(255, 255, 255, 0.1);
@@ -451,6 +484,47 @@ header {visibility: hidden;}
     margin: 0;
     font-size: 1.5rem;
     text-shadow: 0 2px 10px rgba(253, 121, 168, 0.5);
+}
+
+/* Mobile responsive layout */
+@media (max-width: 768px) {
+    .block-container {
+        padding: 1rem 0.5rem !important;
+    }
+    
+    pre {
+        font-size: 0.75rem;
+        padding: 0.75rem;
+    }
+    
+    pre code {
+        font-size: 0.75rem;
+    }
+    
+    code {
+        font-size: 0.85em;
+        padding: 0.15rem 0.3rem;
+    }
+    
+    .question-text {
+        font-size: 1.05rem;
+        line-height: 1.5;
+    }
+}
+
+@media (max-width: 480px) {
+    pre {
+        font-size: 0.7rem;
+        padding: 0.5rem;
+    }
+    
+    pre code {
+        font-size: 0.7rem;
+    }
+    
+    code {
+        font-size: 0.8em;
+    }
 }
 </style>
 """

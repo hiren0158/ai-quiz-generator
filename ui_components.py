@@ -13,27 +13,75 @@ class UIComponents:
     
     @staticmethod
     def format_code_blocks(text):
-        """Convert markdown code blocks to HTML code blocks for proper mobile rendering"""
-        # Convert triple backtick code blocks to HTML pre/code
-        # Pattern: ```language\ncode\n``` or ```language\ncode```
+        """Convert code blocks to HTML for proper rendering - SIMPLIFIED APPROACH"""
+        
+        # STEP 1: Handle existing markdown code blocks (if any)
         def replace_code_block(match):
             language = match.group(1) if match.group(1) else ''
-            code = match.group(2)
+            code = match.group(2).strip()
             # Escape HTML in code
             code = code.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             return f'<pre><code>{code}</code></pre>'
         
-        # Replace triple backtick code blocks (with or without trailing newline)
-        text = re.sub(r'```(\w+)?\s*\n(.*?)```', replace_code_block, text, flags=re.DOTALL)
+        # Convert any existing code blocks
+        text = re.sub(r'```([a-zA-Z0-9_+-]*)?\s*([\s\S]*?)```', replace_code_block, text)
         
-        # Convert inline code (single backticks) to HTML code tags
+        # STEP 2: Smart detection of code patterns in plain text
+        # Look for patterns that indicate code blocks in plain text
+        def detect_and_wrap_code(text):
+            lines = text.split('\n')
+            result_lines = []
+            in_code_block = False
+            code_lines = []
+            
+            for line in lines:
+                # Check if line looks like code
+                is_code_line = (
+                    line.strip().startswith(('class ', 'def ', 'import ', 'from ', '@')) or
+                    line.startswith('    ') or  # Indented
+                    line.startswith('\t') or   # Tab indented
+                    ('=' in line and any(keyword in line for keyword in ['print(', 'return ', '.', '(', ')'])) or
+                    line.strip().endswith(':') or
+                    any(keyword in line for keyword in ['print(', 'obj.', 'self.', '__init__', '__get__', '__set__'])
+                )
+                
+                if is_code_line and not in_code_block:
+                    # Start of code block
+                    in_code_block = True
+                    code_lines = [line]
+                elif is_code_line and in_code_block:
+                    # Continue code block
+                    code_lines.append(line)
+                elif not is_code_line and in_code_block:
+                    # End of code block
+                    if code_lines:
+                        code_text = '\n'.join(code_lines)
+                        escaped_code = code_text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                        result_lines.append(f'<pre><code>{escaped_code}</code></pre>')
+                        code_lines = []
+                    in_code_block = False
+                    result_lines.append(line)
+                else:
+                    # Regular text line
+                    result_lines.append(line)
+            
+            # Handle case where text ends with code
+            if in_code_block and code_lines:
+                code_text = '\n'.join(code_lines)
+                escaped_code = code_text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                result_lines.append(f'<pre><code>{escaped_code}</code></pre>')
+            
+            return '\n'.join(result_lines)
+        
+        # Apply smart code detection
+        text = detect_and_wrap_code(text)
+        
+        # STEP 3: Handle inline code (single backticks)
         def replace_inline_code(match):
             code = match.group(1)
-            # Escape HTML in code
             code = code.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             return f'<code>{code}</code>'
         
-        # Replace inline code (avoid already converted code in pre tags)
         text = re.sub(r'`([^`]+)`', replace_inline_code, text)
         
         return text

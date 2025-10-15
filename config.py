@@ -55,7 +55,7 @@ DIFFICULTY_LEVELS = {
     },
     "Medium 🎯": {
         "description": "Moderate difficulty with some challenging aspects",
-        "prompt_modifier": "medium difficulty with moderately challenging questions. Include both basic and intermediate concepts that require good understanding."
+        "prompt_modifier": "medium difficulty with balanced, moderately challenging questions. Focus on practical understanding and application of intermediate concepts. Questions should be clear and concise, not overly verbose. Mix different question types: conceptual understanding (30%), practical applications (30%), 'what is the output of this code' (20%), best practices (10%), and comparisons (10%)."
     },
     "Hard 🔥": {
         "description": "Advanced questions requiring deep knowledge",
@@ -72,6 +72,16 @@ PAGE_ICON = "🧠"
 # Prompt Template
 QUIZ_GENERATION_PROMPT = """You are an expert quiz creator. Generate exactly {num_questions} multiple-choice questions about {topic} at {difficulty_level}.
 
+SIMPLIFIED APPROACH - FOLLOW EXACTLY:
+1. Your response must be ONLY a JSON array: [question1, question2, ...]
+2. Each question is a JSON object with: question, options, correct_answer, explanation
+3. ALL values must be simple strings - no complex formatting
+4. For code questions: put code in question text using simple formatting
+5. Keep options SHORT and SIMPLE - no code blocks in options
+6. Use this EXACT format for code questions:
+
+"question": "What will this code output?\\n\\nclass Example:\\n    def method(self):\\n        return 'hello'\\n\\nobj = Example()\\nprint(obj.method())\\n\\nChoose the output:"
+
 DIFFICULTY REQUIREMENT: {difficulty_description}
 
 CRITICAL VARIETY REQUIREMENT:
@@ -83,30 +93,71 @@ CRITICAL VARIETY REQUIREMENT:
 - Think creatively and test deeper understanding
 - Make sure questions are not repeated from previous quizzes
 
-For each question, provide:
-1. A clear, specific question appropriate for the difficulty level
-2. Exactly 4 options (A, B, C, D)
-3. The correct answer (letter only: A, B, C, or D)
-4. A brief explanation for the correct answer
+SIMPLE FORMATTING RULES:
+1. Question text: Use \\n for line breaks, NO backticks or special formatting
+2. Code in questions: Write as plain text with \\n for new lines
+3. Options: Always simple strings - "hello", "5", "True", "AttributeError"
+4. NO code blocks anywhere - use plain text only
+5. NO complex formatting, NO backticks, NO special characters
 
-IMPORTANT GUIDELINES:
-- For EASY difficulty: Use simple language, test basic recall and fundamental concepts, but DO NOT use the forbidden examples above
-- For MEDIUM difficulty: Mix factual recall with application and understanding
-- For HARD difficulty: Include scenario-based questions, edge cases, and questions requiring analysis
+QUESTION TYPES FOR MEDIUM DIFFICULTY:
+- Conceptual understanding (30%)
+- Practical applications (30%) 
+- Code output prediction (20%)
+- Best practices (10%)
+- Comparisons (10%)
 
-Format your response as a valid JSON array with this exact structure:
+GUIDELINES:
+- Keep questions clear and concise
+- Test understanding, not memorization
+- Include 1-2 code output questions per quiz
+- Focus on practical knowledge
+
+SIMPLE EXAMPLES - NO COMPLEX FORMATTING:
+
+EXAMPLE 1 - Code output question (SIMPLE FORMAT):
 [
   {{
-    "question": "Question text here?",
+    "question": "What will this code output?\\n\\nclass Test:\\n    def __init__(self):\\n        self.value = 5\\n\\nobj = Test()\\nprint(obj.value)",
     "options": {{
-      "A": "First option",
-      "B": "Second option",
-      "C": "Third option",
-      "D": "Fourth option"
+      "A": "5",
+      "B": "Test",
+      "C": "None", 
+      "D": "AttributeError"
     }},
     "correct_answer": "A",
-    "explanation": "Explanation here"
+    "explanation": "The code creates an object and prints its value attribute, which is 5."
   }}
 ]
 
-Make the questions challenging and educational according to the specified difficulty level. Ensure the JSON is properly formatted with no extra text before or after."""
+EXAMPLE 2 - Conceptual question (NO CODE):
+[
+  {{
+    "question": "What is the main purpose of Python decorators?",
+    "options": {{
+      "A": "To modify or enhance function behavior",
+      "B": "To create new classes",
+      "C": "To handle exceptions",
+      "D": "To import modules"
+    }},
+    "correct_answer": "A", 
+    "explanation": "Decorators are used to modify or enhance the behavior of functions or classes."
+  }}
+]
+
+CRITICAL RULES:
+- Use PLAIN TEXT only - no backticks, no special formatting
+- Code in questions: use \\n for line breaks
+- Options: simple strings only
+- NO [object Object], NO undefined, NO complex structures
+
+FINAL INSTRUCTIONS:
+1. Generate ONLY valid JSON - nothing else
+2. Use simple plain text formatting
+3. NO backticks, NO code blocks, NO complex structures
+4. Code in questions: plain text with \\n line breaks
+5. Options: simple strings like "5", "hello", "True", "AttributeError"
+6. Include 1-2 code output questions per quiz
+7. Keep questions concise and focused
+
+Your response must be a clean JSON array with no extra text."""

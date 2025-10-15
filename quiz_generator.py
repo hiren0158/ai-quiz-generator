@@ -12,6 +12,7 @@ from config import DEFAULT_MODEL, DEFAULT_TEMPERATURE, QUIZ_GENERATION_PROMPT, D
 import difflib
 import os
 import random
+from datetime import datetime, timedelta
 
 
 class QuizGenerator:
@@ -20,9 +21,11 @@ class QuizGenerator:
     previous_questions_store = {}
     STORAGE_FILE = "quiz_history.json"
     
-    # API key rotation management
+    # API key rotation management with smart retry
     current_key_index = 0
-    failed_keys = set()  # Track keys that hit quota
+    failed_keys = {}  # Track keys that hit quota: {key: timestamp_failed}
+    RETRY_COOLDOWN_HOURS = 1  # Retry keys after 1 hour (for false positives)
+    DAILY_RESET_HOUR = 0  # Quota resets at midnight PST
     
     @classmethod
     def load_history(cls):
@@ -49,20 +52,63 @@ class QuizGenerator:
         self.current_key = None
         self.llm = None
     
+    @classmethod
+    def is_key_available(cls, key):
+        """Check if a key is available for use (not failed or cooldown expired)"""
+        if key not in cls.failed_keys:
+            return True  # Never failed, available
+        
+        # Key has failed before - check if cooldown period passed
+        failed_time = cls.failed_keys[key]
+        current_time = datetime.now()
+        time_since_failure = current_time - failed_time
+        
+        # Allow retry after cooldown period
+        if time_since_failure > timedelta(hours=cls.RETRY_COOLDOWN_HOURS):
+            # Remove from failed keys to give it another chance
+            del cls.failed_keys[key]
+            return True
+        
+        return False  # Still in cooldown
+    
+    @classmethod
+    def reset_all_keys(cls):
+        """Reset all failed keys (useful after daily quota reset)"""
+        cls.failed_keys = {}
+        cls.current_key_index = 0
+        print("✅ All API keys have been reset and are available again.")
+    
     def get_next_available_key(self):
-        """Get the next available API key from the pool"""
+        """Get the next available API key from the pool with smart retry logic"""
         # If user provided custom key, use it
         if self.custom_api_key:
             return self.custom_api_key
         
-        # Find keys that haven't failed
-        available_keys = [k for k in API_KEY_POOL if k not in QuizGenerator.failed_keys]
+        # Find keys that are available (not failed or cooldown expired)
+        available_keys = [k for k in API_KEY_POOL if QuizGenerator.is_key_available(k)]
         
         if not available_keys:
-            # All keys exhausted
+            # All keys currently in cooldown - check if any can be force-retried
+            oldest_failed = None
+            oldest_time = None
+            
+            for key in API_KEY_POOL:
+                if key in QuizGenerator.failed_keys:
+                    failed_time = QuizGenerator.failed_keys[key]
+                    if oldest_time is None or failed_time < oldest_time:
+                        oldest_time = failed_time
+                        oldest_failed = key
+            
+            # If we found a failed key, retry the oldest one (it's been in cooldown longest)
+            if oldest_failed:
+                print(f"⚠️ All keys in cooldown. Retrying oldest failed key...")
+                del QuizGenerator.failed_keys[oldest_failed]
+                return oldest_failed
+            
+            # Truly no keys available
             return None
         
-        # Get next key in rotation
+        # Get next key in rotation from available keys
         key = available_keys[QuizGenerator.current_key_index % len(available_keys)]
         QuizGenerator.current_key_index += 1
         return key
@@ -194,11 +240,66 @@ class QuizGenerator:
                 
                 if json_match:
                     json_str = json_match.group(0)
+                    
+                    # Validate: check for [object Object] or other placeholders (case-insensitive)
+                    json_str_lower = json_str.lower()
+                    if any(pattern in json_str_lower for pattern in ['[object object]', 'object object', '[object', ',object', 'undefined', 'null,']):
+                        last_error = "AI generated invalid JSON with object placeholders. Retrying..."
+                        print(f"⚠️ Detected invalid JSON with placeholders. Retrying...")
+                        continue  # Skip this attempt and retry
+                    
                     quiz_data = json.loads(json_str)
                     
-                    # Filter out duplicates and forbidden questions
+                    # Validate each question structure before processing
+                    def is_valid_question_structure(q):
+                        """Validate that question has proper structure with no objects/placeholders"""
+                        try:
+                            # Check required keys exist
+                            if not all(key in q for key in ['question', 'options', 'correct_answer', 'explanation']):
+                                return False
+                            
+                            # Check options is a dict
+                            if not isinstance(q['options'], dict):
+                                return False
+                            
+                            # Check all required option keys
+                            if not all(key in q['options'] for key in ['A', 'B', 'C', 'D']):
+                                return False
+                            
+                            # Validate all values are strings (not objects, arrays, etc.)
+                            if not isinstance(q['question'], str) or not isinstance(q['explanation'], str):
+                                return False
+                            if not isinstance(q['correct_answer'], str):
+                                return False
+                            
+                            # Check each option value is a string
+                            for key, val in q['options'].items():
+                                if not isinstance(val, str):
+                                    return False
+                                # Check for placeholder text in options
+                                if '[object' in str(val).lower() or 'undefined' in str(val).lower():
+                                    return False
+                            
+                            # Check question and explanation for placeholders (comprehensive check)
+                            full_text = str(q['question']) + str(q['explanation']) + str(q['options'])
+                            full_text_lower = full_text.lower()
+                            
+                            # List of invalid patterns to check
+                            invalid_patterns = ['[object', 'object]', ',object', 'undefined', 'null,', '[null', 'null]']
+                            if any(pattern in full_text_lower for pattern in invalid_patterns):
+                                return False
+                            
+                            return True
+                        except Exception:
+                            return False
+                    
+                    # Filter out duplicates, forbidden questions, AND invalid structures
                     filtered_questions = []
                     for q in quiz_data:
+                        # First validate structure
+                        if not is_valid_question_structure(q):
+                            continue  # Skip invalid questions
+                        
                         question_text = q["question"]
                         if not contains_forbidden(question_text) and not is_duplicate(question_text):
                             filtered_questions.append(q)
@@ -210,13 +311,29 @@ class QuizGenerator:
                             random.shuffle(filtered_questions)
                             filtered_questions = filtered_questions[:num_questions]
                         
+                        # Final safety check: verify all questions are valid before returning
+                        final_valid_questions = []
+                        invalid_patterns = ['[object', 'object]', ',object', 'undefined', 'null,', '[null', 'null]']
+                        
+                        for q in filtered_questions:
+                            # Double-check no placeholders in final output
+                            q_str = json.dumps(q).lower()
+                            if not any(pattern in q_str for pattern in invalid_patterns):
+                                final_valid_questions.append(q)
+                            else:
+                                print(f"⚠️ Filtered out question with placeholder: {q['question'][:50]}...")
+                        
+                        if len(final_valid_questions) < num_questions:
+                            # Some questions still invalid, retry
+                            continue
+                        
                         # Store questions in history
-                        new_questions = [q["question"].strip().lower() for q in filtered_questions]
+                        new_questions = [q["question"].strip().lower() for q in final_valid_questions]
                         all_questions = prev_questions + new_questions
                         QuizGenerator.previous_questions_store[topic] = all_questions[-100:]  # Keep last 100
                         QuizGenerator.save_history()  # Persist to file
                         
-                        return filtered_questions
+                        return final_valid_questions
                     else:
                         # Not enough questions after filtering
                         shortage = num_questions - len(filtered_questions)
@@ -265,10 +382,11 @@ class QuizGenerator:
                 
                 # Check if it's a quota error
                 if "429" in error_msg or "quota" in error_msg.lower() or "ResourceExhausted" in error_msg:
-                    # Mark current key as failed
+                    # Mark current key as failed with timestamp
                     if self.current_key:
-                        QuizGenerator.failed_keys.add(self.current_key)
+                        QuizGenerator.failed_keys[self.current_key] = datetime.now()
                         available_count = len(API_KEY_POOL) - len(QuizGenerator.failed_keys)
+                        print(f"🔴 Key marked as failed. Will retry after {QuizGenerator.RETRY_COOLDOWN_HOURS} hour(s).")
                     
                     # Check if we can try another key
                     if self.custom_api_key:

@@ -65,11 +65,43 @@ with st.container():
     with st.expander("⚙️ Advanced Settings (Optional)", expanded=False):
         from config import API_KEY_POOL
         from quiz_generator import QuizGenerator
+        from datetime import datetime, timedelta
         
+        # Calculate truly available keys (after cooldown check)
+        truly_available = sum(1 for k in API_KEY_POOL if QuizGenerator.is_key_available(k))
         failed_count = len(QuizGenerator.failed_keys)
-        available_count = len(API_KEY_POOL) - failed_count
+        in_cooldown = failed_count  # Keys in cooldown
         
-        st.info(f"💡 **API Key Pool Status**: {available_count}/{len(API_KEY_POOL)} keys available. System auto-rotates when quota is reached.")
+        st.markdown("**🔑 API Key Pool Status**")
+        
+        if failed_count == 0:
+            st.success(f"✅ All {len(API_KEY_POOL)} keys are available and ready to use!")
+        else:
+            st.warning(f"⚠️ {truly_available}/{len(API_KEY_POOL)} keys available. {in_cooldown} key(s) in {QuizGenerator.RETRY_COOLDOWN_HOURS}h cooldown.")
+            
+            # Show details about failed keys
+            if QuizGenerator.failed_keys:
+                st.caption("**Failed keys will auto-retry after cooldown period:**")
+                for key, fail_time in QuizGenerator.failed_keys.items():
+                    time_since = datetime.now() - fail_time
+                    minutes_ago = int(time_since.total_seconds() / 60)
+                    retry_in = QuizGenerator.RETRY_COOLDOWN_HOURS * 60 - minutes_ago
+                    if retry_in > 0:
+                        st.caption(f"  • Key ...{key[-6:]}: Failed {minutes_ago}m ago, retries in {retry_in}m")
+                    else:
+                        st.caption(f"  • Key ...{key[-6:]}: Ready to retry now")
+        
+        st.caption("💡 System automatically rotates to next key when quota is reached. Keys auto-retry after cooldown.")
+        
+        # Reset all keys button
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔄 Reset All Keys", help="Manually reset all failed keys (useful after daily quota reset)"):
+                QuizGenerator.reset_all_keys()
+                st.success("✅ All keys reset!")
+                st.rerun()
+        
+        st.markdown("---")
         
         api_key = st.text_input(
             "Custom Google Gemini API Key (Optional):",

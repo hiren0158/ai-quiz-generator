@@ -68,14 +68,8 @@ with st.container():
         from datetime import datetime, timedelta
         
         # Calculate truly available keys (after cooldown check)
-        if hasattr(QuizGenerator, "is_key_available"):
-            truly_available = sum(1 for k in API_KEY_POOL if QuizGenerator.is_key_available(k))
-        else:
-            # Backward compatibility: fall back to simple count
-            truly_available = len(API_KEY_POOL) - len(getattr(QuizGenerator, "failed_keys", []))
-
-        failed_keys_ref = getattr(QuizGenerator, "failed_keys", {})
-        failed_count = len(failed_keys_ref)
+        truly_available = sum(1 for k in API_KEY_POOL if QuizGenerator.is_key_available(k))
+        failed_count = len(QuizGenerator.failed_keys)
         in_cooldown = failed_count  # Keys in cooldown
         
         st.markdown("**🔑 API Key Pool Status**")
@@ -86,19 +80,16 @@ with st.container():
             st.warning(f"⚠️ {truly_available}/{len(API_KEY_POOL)} keys available. {in_cooldown} key(s) in {QuizGenerator.RETRY_COOLDOWN_HOURS}h cooldown.")
             
             # Show details about failed keys
-            if failed_keys_ref:
+            if QuizGenerator.failed_keys:
                 st.caption("**Failed keys will auto-retry after cooldown period:**")
-                for key, fail_time in failed_keys_ref.items():
-                    if hasattr(datetime, "now") and isinstance(fail_time, datetime):
-                        time_since = datetime.now() - fail_time
-                        minutes_ago = int(time_since.total_seconds() / 60)
-                        retry_in = getattr(QuizGenerator, "RETRY_COOLDOWN_HOURS", 1) * 60 - minutes_ago
-                        if retry_in > 0:
-                            st.caption(f"  • Key ...{key[-6:]}: Failed {minutes_ago}m ago, retries in {retry_in}m")
-                        else:
-                            st.caption(f"  • Key ...{key[-6:]}: Ready to retry now")
+                for key, fail_time in QuizGenerator.failed_keys.items():
+                    time_since = datetime.now() - fail_time
+                    minutes_ago = int(time_since.total_seconds() / 60)
+                    retry_in = QuizGenerator.RETRY_COOLDOWN_HOURS * 60 - minutes_ago
+                    if retry_in > 0:
+                        st.caption(f"  • Key ...{key[-6:]}: Failed {minutes_ago}m ago, retries in {retry_in}m")
                     else:
-                        st.caption(f"  • Key ...{key[-6:]}: In cooldown")
+                        st.caption(f"  • Key ...{key[-6:]}: Ready to retry now")
         
         st.caption("💡 System automatically rotates to next key when quota is reached. Keys auto-retry after cooldown.")
         
@@ -106,16 +97,7 @@ with st.container():
         col1, col2 = st.columns(2)
         with col1:
             if st.button("🔄 Reset All Keys", help="Manually reset all failed keys (useful after daily quota reset)"):
-                if hasattr(QuizGenerator, "reset_all_keys"):
-                    QuizGenerator.reset_all_keys()
-                else:
-                    # Backward compatibility: clear failed key tracking manually
-                    if hasattr(QuizGenerator, "failed_keys"):
-                        if isinstance(QuizGenerator.failed_keys, dict):
-                            QuizGenerator.failed_keys.clear()
-                        elif isinstance(QuizGenerator.failed_keys, set):
-                            QuizGenerator.failed_keys.clear()
-                    QuizGenerator.current_key_index = 0
+                QuizGenerator.reset_all_keys()
                 st.success("✅ All keys reset!")
                 st.rerun()
         

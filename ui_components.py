@@ -26,50 +26,56 @@ class UIComponents:
         # Convert any existing code blocks
         text = re.sub(r'```([a-zA-Z0-9_+-]*)?\s*([\s\S]*?)```', replace_code_block, text)
         
-        # STEP 2: Smart detection of code patterns in plain text
-        # Look for patterns that indicate code blocks in plain text
+        # STEP 2: Aggressive code detection - group ALL code-like lines together
         def detect_and_wrap_code(text):
             lines = text.split('\n')
-            result_lines = []
-            in_code_block = False
-            code_lines = []
             
-            for line in lines:
-                # Check if line looks like code
+            # First pass: identify all code-like lines
+            code_line_indices = set()
+            for i, line in enumerate(lines):
                 is_code_line = (
                     line.strip().startswith(('class ', 'def ', 'import ', 'from ', '@')) or
-                    line.startswith('    ') or  # Indented
-                    line.startswith('\t') or   # Tab indented
-                    ('=' in line and any(keyword in line for keyword in ['print(', 'return ', '.', '(', ')'])) or
+                    line.startswith('    ') or line.startswith('\t') or  # Indented
+                    ('=' in line and any(kw in line for kw in ['print(', 'return ', '.', '(', ')'])) or
                     line.strip().endswith(':') or
-                    any(keyword in line for keyword in ['print(', 'obj.', 'self.', '__init__', '__get__', '__set__'])
+                    any(kw in line for kw in ['print(', 'obj.', 'self.', '__init__', '__get__', '__set__', 'my_function'])
                 )
-                
-                if is_code_line and not in_code_block:
-                    # Start of code block
-                    in_code_block = True
-                    code_lines = [line]
-                elif is_code_line and in_code_block:
-                    # Continue code block
-                    code_lines.append(line)
-                elif not is_code_line and in_code_block:
-                    # End of code block
+                if is_code_line:
+                    code_line_indices.add(i)
+            
+            # Second pass: extend code blocks to include nearby empty lines
+            extended_indices = set(code_line_indices)
+            for i in code_line_indices:
+                # Include empty lines between code lines
+                for j in range(max(0, i-2), min(len(lines), i+3)):
+                    if j in code_line_indices or lines[j].strip() == '':
+                        # Check if this empty line is surrounded by code
+                        has_code_before = any(k in code_line_indices for k in range(max(0, j-2), j))
+                        has_code_after = any(k in code_line_indices for k in range(j+1, min(len(lines), j+3)))
+                        if has_code_before and has_code_after:
+                            extended_indices.add(j)
+            
+            # Third pass: group consecutive code lines into blocks
+            result_lines = []
+            i = 0
+            while i < len(lines):
+                if i in extended_indices:
+                    # Start of code block - collect all consecutive code lines
+                    code_lines = []
+                    while i < len(lines) and i in extended_indices:
+                        code_lines.append(lines[i])
+                        i += 1
+                    
+                    # Create code block
                     if code_lines:
-                        code_text = '\n'.join(code_lines)
-                        escaped_code = code_text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-                        result_lines.append(f'<pre><code>{escaped_code}</code></pre>')
-                        code_lines = []
-                    in_code_block = False
-                    result_lines.append(line)
+                        code_text = '\n'.join(code_lines).strip()
+                        if code_text:  # Only create block if there's actual content
+                            escaped_code = code_text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                            result_lines.append(f'<pre><code>{escaped_code}</code></pre>')
                 else:
                     # Regular text line
-                    result_lines.append(line)
-            
-            # Handle case where text ends with code
-            if in_code_block and code_lines:
-                code_text = '\n'.join(code_lines)
-                escaped_code = code_text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-                result_lines.append(f'<pre><code>{escaped_code}</code></pre>')
+                    result_lines.append(lines[i])
+                    i += 1
             
             return '\n'.join(result_lines)
         

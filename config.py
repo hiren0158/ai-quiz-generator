@@ -72,15 +72,23 @@ PAGE_ICON = "🧠"
 # Prompt Template
 QUIZ_GENERATION_PROMPT = """You are an expert quiz creator. Generate exactly {num_questions} multiple-choice questions about {topic} at {difficulty_level}.
 
-SIMPLIFIED APPROACH - FOLLOW EXACTLY:
-1. Your response must be ONLY a JSON array: [question1, question2, ...]
-2. Each question is a JSON object with: question, options, correct_answer, explanation
-3. ALL values must be simple strings - no complex formatting
-4. For code questions: put code in question text using simple formatting
-5. Keep options SHORT and SIMPLE - no code blocks in options
-6. Use this EXACT format for code questions:
+CRITICAL - MUST FOLLOW EXACTLY (VIOLATIONS WILL BE REJECTED):
+1. Response = ONLY valid JSON array starting with [ and ending with ]
+2. Every field value MUST be a complete STRING - never use objects, arrays, or incomplete data
+3. NEVER EVER use [object Object], undefined, null, or any placeholder
+4. ALL options (A, B, C, D) must be SHORT simple strings like "5", "hello", "Error"
+5. For code: write as plain text with \\n for line breaks (NO backticks in options)
 
+ABSOLUTELY FORBIDDEN - These will cause REJECTION:
+❌ [object Object] - NEVER use this
+❌ ,[object Object], - NEVER split data like this
+❌ undefined - NEVER use this
+❌ Incomplete code or text
+❌ Object references or placeholders
+
+REQUIRED FORMAT for code questions:
 "question": "What will this code output?\\n\\nclass Example:\\n    def method(self):\\n        return 'hello'\\n\\nobj = Example()\\nprint(obj.method())\\n\\nChoose the output:"
+"options": {{"A": "hello", "B": "HELLO", "C": "Error", "D": "None"}}
 
 DIFFICULTY REQUIREMENT: {difficulty_description}
 

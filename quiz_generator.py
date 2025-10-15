@@ -200,10 +200,18 @@ class QuizGenerator:
         forbidden_keywords = [
             "hello world", "variable naming", "print statement", "basic data type", "simple loop", "input/output", "if statement", "for loop", "while loop", "function definition", "list operation", "string concatenation", "simple arithmetic"
         ]
+        
+        # CRITICAL: Check for [object Object] placeholders
+        invalid_patterns = ['[object', 'object]', ',object', 'undefined', 'null,', '[null', 'null]']
 
         def contains_forbidden(question_text):
             lower_q = question_text.lower()
             return any(keyword in lower_q for keyword in forbidden_keywords)
+        
+        def contains_invalid_placeholder(text):
+            """Check if text contains [object Object] or similar placeholders"""
+            text_lower = str(text).lower()
+            return any(pattern in text_lower for pattern in invalid_patterns)
         
         def is_duplicate(question_text):
             # Fuzzy match: consider duplicate if similarity > 0.80 with any previous question
@@ -298,9 +306,24 @@ class QuizGenerator:
                     for q in quiz_data:
                         # First validate structure
                         if not is_valid_question_structure(q):
+                            print(f"⚠️ Skipped question with invalid structure")
                             continue  # Skip invalid questions
                         
+                        # Check for placeholders in question text
                         question_text = q["question"]
+                        if contains_invalid_placeholder(question_text):
+                            print(f"⚠️ Skipped question with placeholder in text: {question_text[:50]}...")
+                            continue
+                        
+                        # Check for placeholders in options
+                        has_placeholder_in_options = any(
+                            contains_invalid_placeholder(str(v)) for v in q["options"].values()
+                        )
+                        if has_placeholder_in_options:
+                            print(f"⚠️ Skipped question with placeholder in options")
+                            continue
+                        
+                        # Check forbidden and duplicates
                         if not contains_forbidden(question_text) and not is_duplicate(question_text):
                             filtered_questions.append(q)
                     
